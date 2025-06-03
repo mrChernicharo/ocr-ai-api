@@ -1,0 +1,24 @@
+{
+	"name": "ocr-ai-api",
+	"version": "1.0.0",
+	"main": "index.js",
+	"type": "module",
+	"scripts": {
+		"dev": "node --watch --experimental-strip-types --env-file=./.env index.ts"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"description": "",
+	"volta": {
+		"node": "23.11.1"
+	},
+	"dependencies": {
+		"@google-cloud/vision": "^5.1.0",
+		"cors": "^2.8.5",
+		"express": "^5.1.0"
+	},
+	"devDependencies": {
+		"@types/express": "^5.0.2"
+	}
+}
