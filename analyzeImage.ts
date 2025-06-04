@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { ImageAnnotatorClient } from '@google-cloud/vision';
+import { GoogleGenAI } from '@google/genai';
 
 // Google Cloud Vision Client --- This will automatically use the GOOGLE_APPLICATION_CREDENTIALS environment variable
 let visionClient: ImageAnnotatorClient;
@@ -75,9 +76,73 @@ const analyzeImage = async (req: Request, res: Response) => {
 							) || []
 					) || [],
 				// You can return the full annotation if your client wants to parse it
-				// fullAnnotation: fullTextAnnotation
 			};
-			res.json(extractedData);
+
+			const genAI = new GoogleGenAI({
+				apiKey: process.env.GOOGLE_API_KEY,
+			});
+
+			console.log('prompting AI...');
+
+			const aiResponse = await genAI.models.generateContent({
+				model: 'gemini-2.0-flash-001',
+				contents: `you are an expert in translating ocr text obtained from restaurant bills from all countries into json structures.
+                you can read ocr texts and understand what products were bought and how much they cost. 
+                your goal is to transform this piece of ocr text
+                \`\`\`
+                ${extractedData.rawText}
+                \`\`\`
+                into a json structure representing the bill according to the following contracts:
+                \`\`\`
+                export enum Category {
+                    RESTAURANT = "RESTAURANT", // Already matching
+                    BAR_PUB = "BAR_PUB", // Already matching
+                    GROCERIES_SUPERMARKET = "GROCERIES_SUPERMARKET",
+                    RETAIL_SHOPPING = "RETAIL_SHOPPING",
+                    ONLINE_PURCHASE = "ONLINE_PURCHASE",
+                    FLIGHT_TICKET = "FLIGHT_TICKET",
+                    TRANSPORT = "TRANSPORT", // (Car, Train, Bus, Boat)
+                    ACCOMMODATION = "ACCOMMODATION",
+                    UTILITIES_HOME = "UTILITIES_HOME",
+                    HEALTH_MEDICAL = "HEALTH_MEDICAL",
+                    SERVICES = "SERVICES", // (General)
+                    ENTERTAINMENT_LEISURE = "ENTERTAINMENT_LEISURE",
+                    EDUCATION = "EDUCATION",
+                    MISCELLANEOUS = "MISCELLANEOUS",
+                    UNKNOWN = "UNKNOWN",
+                }
+                interface Product {
+	                name: string;
+                    category: Category;
+	                unitPrice?: number; // Optional, as it might be calculated or not explicitly present
+	                quantity?: number; // Optional, as it might be calculated or not explicitly present
+	                totalPrice: number;
+                }
+                interface Bill {
+                    category: Category;
+	                establishment?: string;
+	                address?: string;
+	                date?: string; // Format: YYYY-MM-DD
+	                time?: string; // Format: HH:MM:SS
+	                products: Product[];
+	                totalBill?: number;
+	                vatAmount?: number;
+                }
+                \`\`\`
+                ensure only the raw json is returned, nothing more. no comments. no fluff. 
+                only json, ready to be consumed by a javascript application.
+                `,
+			});
+
+			console.log('OK!');
+
+			let responseJSONText = (aiResponse.text || '')
+				?.replace(/^```json/, '')
+				?.replace(/```$/, '');
+
+			const jsonData = JSON.parse(responseJSONText);
+
+			res.json(jsonData);
 		} else {
 			console.log('No text found in the image.');
 			res.json({
