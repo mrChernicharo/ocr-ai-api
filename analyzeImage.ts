@@ -33,13 +33,12 @@ const analyzeImage = async (req: Request, res: Response) => {
 				content: base64, // The base64 encoded image string
 			},
 			// features: [{ type: 'DOCUMENT_TEXT_DETECTION' as const }], // 'as const' helps TypeScript infer the literal type
-			// You can add imageContext for language hints if needed:
 			imageContext: {
 				languageHints: ['en', 'pt-BR'], // Example language hints
 			},
 		};
 
-		console.log('Sending request to Google Vision API...', request);
+		console.log('Sending request to Google Vision API...');
 		// Performs text detection on the image file
 		// const [result] = await visionClient.annotateImage(request);
 		const [result] = await visionClient.documentTextDetection(request);
@@ -78,12 +77,11 @@ const analyzeImage = async (req: Request, res: Response) => {
 				// You can return the full annotation if your client wants to parse it
 			};
 
+			console.log('prompting AI...');
+
 			const genAI = new GoogleGenAI({
 				apiKey: process.env.GOOGLE_API_KEY,
 			});
-
-			console.log('prompting AI...');
-
 			const aiResponse = await genAI.models.generateContent({
 				model: 'gemini-2.0-flash-001',
 				contents: `you are an expert in translating ocr text obtained from restaurant bills from all countries into json structures.
@@ -134,7 +132,7 @@ const analyzeImage = async (req: Request, res: Response) => {
                 `,
 			});
 
-			console.log('OK!');
+			console.log('ai prompt successful!');
 
 			let responseJSONText = (aiResponse.text || '')
 				?.replace(/^```json/, '')
@@ -152,7 +150,10 @@ const analyzeImage = async (req: Request, res: Response) => {
 			});
 		}
 	} catch (error: any) {
-		console.error('Error processing image with Google Vision:', error);
+		console.error(
+			'Error processing image with Google Vision and Google GenAI:',
+			error
+		);
 		res.status(500).json({
 			error: 'Failed to process image',
 			details: error.message || String(error),
