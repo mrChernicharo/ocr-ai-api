@@ -85,7 +85,7 @@ const analyzeImage = async (req: Request, res: Response) => {
 			const aiResponse = await genAI.models.generateContent({
 				model: 'gemini-2.0-flash-001',
 				contents: `you are an expert in translating ocr text obtained from restaurant bills from all countries into json structures.
-                you can read ocr texts and understand what products were bought and how much they cost.
+                you can read ocr texts and understand what products were bought and how much they cost. 
                 your goal is to transform this piece of ocr text
                 \`\`\`
                 ${extractedData.rawText}
@@ -135,12 +135,9 @@ const analyzeImage = async (req: Request, res: Response) => {
 					vatAmount?: number;
 				}
                 \`\`\`
-				You're also capable of understanding the total cost by summing up the products in the bill and also of creating extra entries
-				for things like tax, service, or even unknown entries, to fill the gap in case the total cost doesn't match the sum of products' prices.
-
+				create a tax/service product entry if you identify tax/service charge.
                 ensure only the raw json is returned, nothing more. no comments. no fluff. 
                 only json, ready to be consumed by a javascript application.
-
                 `,
 			});
 
