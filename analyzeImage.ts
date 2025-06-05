@@ -85,7 +85,7 @@ const analyzeImage = async (req: Request, res: Response) => {
 			const aiResponse = await genAI.models.generateContent({
 				model: 'gemini-2.0-flash-001',
 				contents: `you are an expert in translating ocr text obtained from restaurant bills from all countries into json structures.
-                you can read ocr texts and understand what products were bought and how much they cost. 
+                you can read ocr texts and understand what products were bought and how much they cost.
                 your goal is to transform this piece of ocr text
                 \`\`\`
                 ${extractedData.rawText}
@@ -93,42 +93,54 @@ const analyzeImage = async (req: Request, res: Response) => {
                 into a json structure representing the bill according to the following contracts:
                 \`\`\`
                 export enum Category {
-                    RESTAURANT = "RESTAURANT", // Already matching
-                    BAR_PUB = "BAR_PUB", // Already matching
-                    GROCERIES_SUPERMARKET = "GROCERIES_SUPERMARKET",
-                    RETAIL_SHOPPING = "RETAIL_SHOPPING",
-                    ONLINE_PURCHASE = "ONLINE_PURCHASE",
-                    FLIGHT_TICKET = "FLIGHT_TICKET",
-                    TRANSPORT = "TRANSPORT", // (Car, Train, Bus, Boat)
-                    ACCOMMODATION = "ACCOMMODATION",
-                    UTILITIES_HOME = "UTILITIES_HOME",
-                    HEALTH_MEDICAL = "HEALTH_MEDICAL",
-                    SERVICES = "SERVICES", // (General)
-                    ENTERTAINMENT_LEISURE = "ENTERTAINMENT_LEISURE",
-                    EDUCATION = "EDUCATION",
-                    MISCELLANEOUS = "MISCELLANEOUS",
-                    UNKNOWN = "UNKNOWN",
+					MEAL = 'MEAL',
+					FAST_FOOD = 'FAST_FOOD',
+					PIZZA_PASTA = 'PIZZA_PASTA',
+					ORIENTAL_CUISINE = 'ORIENTAL_CUISINE',
+					DESSERT = 'DESSERT',
+					TAX = 'TAX',
+					SERVICE = 'SERVICE',
+					SOFT_DRINK = 'SOFT_DRINK',
+					ALCOHOLIC_DRINK = 'ALCOHOLIC_DRINK',
+					GROCERIES_SUPERMARKET = 'GROCERIES_SUPERMARKET',
+					RETAIL_SHOPPING = 'RETAIL_SHOPPING',
+					ONLINE_PURCHASE = 'ONLINE_PURCHASE',
+					GIFT = 'GIFT',
+					FLIGHT = 'FLIGHT',
+					TRANSPORT = 'TRANSPORT', // (Car, Train, Bus, Boat)
+					ACCOMMODATION = 'ACCOMMODATION',
+					UTILITIES_HOME = 'UTILITIES_HOME',
+					TECH = 'TECH', // (PC, Smartphone, Video game)
+					HEALTH_MEDICAL = 'HEALTH_MEDICAL',
+					ENTERTAINMENT_LEISURE = 'ENTERTAINMENT_LEISURE',
+					EDUCATION = 'EDUCATION',
+					MISCELLANEOUS = 'MISCELLANEOUS',
+					UNKNOWN = 'UNKNOWN',
                 }
-                interface Product {
-	                name: string;
-                    category: Category;
-	                unitPrice?: number; // Optional, as it might be calculated or not explicitly present
-	                quantity?: number; // Optional, as it might be calculated or not explicitly present
-	                totalPrice: number;
-                }
-                interface Bill {
-                    category: Category;
-	                establishment?: string;
-	                address?: string;
-	                date?: string; // Format: YYYY-MM-DD
-	                time?: string; // Format: HH:MM:SS
-	                products: Product[];
-	                totalBill?: number;
-	                vatAmount?: number;
-                }
+				interface Product {
+					name: string;
+					unitPrice?: number; // Optional, as it might be calculated or not explicitly present
+					quantity?: number; // Optional, as it might be calculated or not explicitly present
+					totalPrice: number;
+					category: Category;
+				}
+
+				interface Bill {
+					establishment?: string;
+					address?: string;
+					date?: string; // Format: YYYY-MM-DD
+					time?: string; // Format: HH:MM:SS
+					products: Product[];
+					totalBill?: number;
+					vatAmount?: number;
+				}
                 \`\`\`
+				You're also capable of understanding the total cost by summing up the products in the bill and also of creating extra entries
+				for things like tax, service, or even unknown entries, to fill the gap in case the total cost doesn't match the sum of products' prices.
+
                 ensure only the raw json is returned, nothing more. no comments. no fluff. 
                 only json, ready to be consumed by a javascript application.
+
                 `,
 			});
 
