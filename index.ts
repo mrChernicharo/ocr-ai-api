@@ -16,6 +16,10 @@ app.get('/', (req, res) => {
 	});
 });
 
+app.get('/error-test', (req, res) => {
+	throw Error('Error!!!!');
+});
+
 app.post('/analyze-image', (req, res) => {
 	analyzeImage(req, res);
 });
