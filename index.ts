@@ -30,5 +30,7 @@ app.post('/analyze-image', (req, res) => {
 });
 
 app.listen(PORT, () => {
+	const apiKey = process.env.GOOGLE_API_KEY;
+	console.log(apiKey ? apiKey.replace(/./g, '*') : 'no api key');
 	console.log(`listening on PORT ${PORT} 😀`);
 });
