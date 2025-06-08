@@ -13,6 +13,7 @@ try {
 }
 
 const analyzeImage = async (req: Request, res: Response) => {
+	console.log('running analyzeImage...');
 	if (!visionClient) {
 		return res
 			.status(500)
