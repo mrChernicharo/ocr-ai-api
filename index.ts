@@ -20,6 +20,11 @@ app.get('/error-test', (req, res) => {
 	throw Error('Error!!!!');
 });
 
+app.get('/say-hello', (req, res) => {
+	console.log('hello in the server!');
+	res.json({ message: 'ok' });
+});
+
 app.post('/analyze-image', (req, res) => {
 	analyzeImage(req, res);
 });
