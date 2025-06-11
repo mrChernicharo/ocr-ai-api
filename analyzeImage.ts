@@ -13,7 +13,8 @@ try {
 }
 
 const analyzeImage = async (req: Request, res: Response) => {
-	console.log('running analyzeImage...');
+	console.log('=======================');
+	console.log('running analyzeImage...', new Date().toLocaleString('pt-BR'));
 	if (!visionClient) {
 		return res
 			.status(500)
@@ -83,6 +84,7 @@ const analyzeImage = async (req: Request, res: Response) => {
 			const genAI = new GoogleGenAI({
 				apiKey: process.env.GOOGLE_API_KEY,
 			});
+
 			const aiResponse = await genAI.models.generateContent({
 				model: 'gemini-2.0-flash-001',
 				contents: `you are an expert in translating ocr text obtained from restaurant bills from all countries into json structures.
@@ -141,7 +143,6 @@ const analyzeImage = async (req: Request, res: Response) => {
                 only json, ready to be consumed by a javascript application.
                 `,
 			});
-
 			console.log('ai prompt successful!');
 
 			let responseJSONText = (aiResponse.text || '')
@@ -150,6 +151,7 @@ const analyzeImage = async (req: Request, res: Response) => {
 
 			const jsonData = JSON.parse(responseJSONText);
 
+			console.log('sending response back :::', jsonData);
 			res.json(jsonData);
 		} else {
 			console.log('No text found in the image.');
@@ -161,7 +163,7 @@ const analyzeImage = async (req: Request, res: Response) => {
 		}
 	} catch (error: any) {
 		console.error(
-			'Error processing image with Google Vision and Google GenAI:',
+			'Error processing image. either Google Vision or Google GenAI failed ::',
 			error
 		);
 		res.status(500).json({
