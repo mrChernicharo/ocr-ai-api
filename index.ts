@@ -16,6 +16,12 @@ app.get('/', (req, res) => {
 	});
 });
 
+let pong = 0;
+app.get('/ping', (req, res) => {
+	res.json({ pong });
+	pong++;
+});
+
 app.get('/error-test', (req, res) => {
 	throw Error('Error!!!!');
 });
