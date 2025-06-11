@@ -13,8 +13,7 @@ try {
 }
 
 const analyzeImage = async (req: Request, res: Response) => {
-	console.log('=======================');
-	console.log('running analyzeImage...', new Date().toLocaleString('pt-BR'));
+	console.log('running analyzeImage...');
 	if (!visionClient) {
 		return res
 			.status(500)

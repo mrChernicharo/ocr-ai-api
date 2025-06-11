@@ -18,6 +18,7 @@ app.get('/', (req, res) => {
 
 let pong = 0;
 app.get('/ping', (req, res) => {
+	console.log({ ping: pong });
 	res.json({ pong });
 	pong++;
 });
@@ -32,6 +33,9 @@ app.get('/say-hello', (req, res) => {
 });
 
 app.post('/analyze-image', (req, res) => {
+	console.log('=======================');
+	console.log(new Date().toLocaleString('pt-BR'));
+
 	analyzeImage(req, res);
 });
 
