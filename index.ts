@@ -6,7 +6,7 @@ const PORT = process.env.PORT || 10666;
 
 const app = express();
 app.use(cors('*'));
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '100mb' }));
 
 app.get('/', (req, res) => {
 	res.json({
@@ -24,7 +24,7 @@ app.get('/ping', (req, res) => {
 });
 
 app.get('/error-test', (req, res) => {
-	throw Error('Error!!!!');
+	throw Error('Error Test!!!!');
 });
 
 app.get('/say-hello', (req, res) => {
