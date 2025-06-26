@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { visionClient, analyzeImage } from './analyzeImage.ts';
+import { visionClient, analyzeImage, tessearctImage } from './analyzeImage.ts';
 
 const PORT = process.env.PORT || 10666;
 
@@ -38,6 +38,14 @@ app.post('/analyze-image', (req, res) => {
 	console.log(new Date().toLocaleString('pt-BR'));
 
 	analyzeImage(req, res);
+});
+app.post('/tesseract-image', (req, res) => {
+	console.log(
+		'======================= tessearctImage ======================='
+	);
+	console.log(new Date().toLocaleString('pt-BR'));
+
+	tessearctImage(req, res);
 });
 
 app.listen(PORT, () => {
