@@ -57,29 +57,11 @@ const analyzeImage = async (req: Request, res: Response) => {
 
 		if (fullTextAnnotation && fullTextAnnotation.text) {
 			console.log('Text detection successful.');
-			// For structured data, you'd need to parse fullTextAnnotation.pages, blocks, paragraphs, words, symbols
-			// This example just returns the full raw text and a simplified structure
-			const extractedData = {
-				rawText: fullTextAnnotation.text,
-				// Basic line extraction example (you'll need more sophisticated parsing for bills)
-				lines:
-					fullTextAnnotation.pages?.[0]?.blocks?.flatMap(
-						block =>
-							block.paragraphs?.flatMap(para =>
-								para.words
-									?.map(word =>
-										word.symbols
-											?.map(symbol => symbol.text)
-											.join('')
-									)
-									.join(' ')
-							) || []
-					) || [],
-				// You can return the full annotation if your client wants to parse it
-			};
 
-			console.log('prompting AI...');
+			const extractedOCR = fullTextAnnotation.text;
+			console.log({ extractedOCR });
 
+			console.log('now prompting AI...');
 			const genAI = new GoogleGenAI({
 				apiKey: process.env.GOOGLE_API_KEY,
 			});
@@ -90,7 +72,7 @@ const analyzeImage = async (req: Request, res: Response) => {
                 you can read ocr texts and understand what products were bought and how much they cost. 
                 your goal is to transform this piece of ocr text
                 \`\`\`
-                ${extractedData.rawText}
+                ${extractedOCR}
                 \`\`\`
                 into a json structure representing the bill according to the following contracts:
                 \`\`\`

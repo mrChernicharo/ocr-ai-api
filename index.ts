@@ -6,6 +6,7 @@ const PORT = process.env.PORT || 10666;
 
 const app = express();
 app.use(cors('*'));
+// nginx config ::: increase-file-size-upload -> https://betterstack.com/community/questions/how-to-edit-nginx-conf-to-increase-file-size-upload/
 app.use(express.json({ limit: '100mb' }));
 
 app.get('/', (req, res) => {
