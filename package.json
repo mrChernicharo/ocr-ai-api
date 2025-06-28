@@ -21,7 +21,9 @@
 		"express": "^5.1.0",
 		"node-tesseract-ocr": "^2.2.1",
 		"ollama": "^0.5.16",
-		"tesseract.js": "^5.1.1"
+		"tesseract.js": "^5.1.1",
+		"zod": "^3.25.67",
+		"zod-to-json-schema": "^3.24.6"
 	},
 	"devDependencies": {
 		"@types/express": "^5.0.2"

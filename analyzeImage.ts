@@ -2,18 +2,9 @@ import type { Request, Response } from 'express';
 import { ImageAnnotatorClient } from '@google-cloud/vision';
 import { GoogleGenAI } from '@google/genai';
 import { createWorker } from 'tesseract.js';
-
-// model: 'llama3.1', // 4.9 GB
-// model: 'llama3.2', // 2.0 GB
-
+import { zodToJsonSchema } from 'zod-to-json-schema';
+import { z } from 'zod';
 import ollama from 'ollama';
-ollama.list().then(console.log);
-
-// const response = await ollama.chat({
-// 	model: 'gemma3:1b', // 815 MB
-// 	messages: [{ role: 'user', content: 'Why is the sky blue?' }],
-// });
-// console.log(response.message.content);
 
 // Google Cloud Vision Client --- This will automatically use the GOOGLE_APPLICATION_CREDENTIALS environment variable
 let visionClient: ImageAnnotatorClient;
@@ -25,67 +16,55 @@ try {
 	process.exit(1);
 }
 
-const analyzeImage = async (req: Request, res: Response) => {
-	console.log('running analyzeImage...');
-	if (!visionClient) {
-		return res
-			.status(500)
-			.json({ error: 'Vision client not initialized.' });
-	}
+const bodySchema = z.object({
+	base64: z.string(),
+	mimeType: z.string(),
+	lang: z.string(),
+});
 
-	const { base64 } = req.body;
+const billSchema = z.object({
+	products: z.array(
+		z.object({
+			name: z.string(),
+			quantity: z.number().optional(),
+			unitPrice: z.number().optional(),
+			discount: z.number().optional(),
+			totalPrice: z.number(),
+			category: z.enum([
+				'MEAL',
+				'FAST_FOOD',
+				'PIZZA_PASTA',
+				'ORIENTAL_CUISINE',
+				'DESSERT',
+				'TAX',
+				'SERVICE',
+				'SOFT_DRINK',
+				'ALCOHOLIC_DRINK',
+				'GROCERIES_SUPERMARKET',
+				'RETAIL_SHOPPING',
+				'ONLINE_PURCHASE',
+				'GIFT',
+				'FLIGHT',
+				'TRANSPORT',
+				'ACCOMMODATION',
+				'UTILITIES_HOME',
+				'TECH',
+				'HEALTH_MEDICAL',
+				'ENTERTAINMENT_LEISURE',
+				'EDUCATION',
+				'UNKNOWN',
+			]),
+		})
+	),
+});
 
-	if (!base64) {
-		return res
-			.status(400)
-			.json({ error: 'Missing field "base64" in request body.' });
-	}
-
-	try {
-		const request = {
-			image: {
-				content: base64, // The base64 encoded image string
-			},
-			// features: [{ type: 'DOCUMENT_TEXT_DETECTION' as const }], // 'as const' helps TypeScript infer the literal type
-			imageContext: {
-				languageHints: ['en', 'pt-BR'], // Example language hints
-			},
-		};
-
-		console.log('Sending request to Google Vision API...');
-		// Performs text detection on the image file
-		// const [result] = await visionClient.annotateImage(request);
-		const [result] = await visionClient.documentTextDetection(request);
-		// const [result] = await visionClient.textDetection(request); // for less structured text
-
-		if (result.error) {
-			console.error('Google Vision API Error:', result.error);
-			return res.status(500).json({
-				error: 'Google Vision API processing error',
-				details: result.error.message,
-			});
-		}
-
-		const fullTextAnnotation = result.fullTextAnnotation;
-
-		if (fullTextAnnotation && fullTextAnnotation.text) {
-			console.log('Text detection successful.');
-
-			const extractedOCR = fullTextAnnotation.text;
-			console.log({ extractedOCR });
-
-			console.log('now prompting AI...');
-			const genAI = new GoogleGenAI({
-				apiKey: process.env.GOOGLE_API_KEY,
-			});
-
-			const aiResponse = await genAI.models.generateContent({
-				model: 'gemini-2.0-flash-001',
-				contents: `you are an expert in translating ocr text obtained from restaurant bills from all countries into json structures.
+const getPrompt = (
+	ocrText: string
+) => `you are an expert in translating ocr text obtained from restaurant bills from all countries into json structures.
                 you can read ocr texts and understand what products were bought and how much they cost. 
                 your goal is to transform this piece of ocr text
                 \`\`\`
-                ${extractedOCR}
+                ${ocrText}
                 \`\`\`
                 into a json structure representing the bill according to the following contracts:
                 \`\`\`
@@ -111,118 +90,6 @@ const analyzeImage = async (req: Request, res: Response) => {
 					HEALTH_MEDICAL = 'HEALTH_MEDICAL',
 					ENTERTAINMENT_LEISURE = 'ENTERTAINMENT_LEISURE',
 					EDUCATION = 'EDUCATION',
-					MISCELLANEOUS = 'MISCELLANEOUS',
-					UNKNOWN = 'UNKNOWN',
-                }
-				interface Product {
-					name: string;
-					unitPrice?: number; // Optional, as it might be calculated or not explicitly present
-					quantity?: number; // Optional, as it might be calculated or not explicitly present
-					totalPrice: number;
-					category: Category;
-				}
-
-				interface Bill {
-					establishment?: string;
-					address?: string;
-					date?: string; // Format: YYYY-MM-DD
-					time?: string; // Format: HH:MM:SS
-					products: Product[];
-					totalBill?: number;
-					vatAmount?: number;
-				}
-                \`\`\`
-				create a tax/service product entry if you identify tax/service charge.
-                ensure only the raw json is returned, nothing more. no comments. no fluff. 
-                only json, ready to be consumed by a javascript application.
-                `,
-			});
-			console.log('ai prompt successful!');
-
-			let responseJSONText = (aiResponse.text || '')
-				?.replace(/^```json/, '')
-				?.replace(/```$/, '');
-
-			const jsonData = JSON.parse(responseJSONText);
-
-			console.log('sending response back :::', jsonData);
-			res.json(jsonData);
-		} else {
-			console.log('No text found in the image.');
-			res.json({
-				rawText: '',
-				lines: [],
-				message: 'No text found in the image.',
-			});
-		}
-	} catch (error: any) {
-		console.error(
-			'Error processing image. either Google Vision or Google GenAI failed ::',
-			error
-		);
-		res.status(500).json({
-			error: 'Failed to process image',
-			details: error.message || String(error),
-		});
-	}
-};
-
-const tessearctImage = async (req: Request, res: Response) => {
-	try {
-		const { base64, mimeType } = req.body;
-
-		const worker = await createWorker(['por', 'eng']);
-
-		// console.log(worker);
-
-		const ret = await worker.recognize(
-			// import.meta.dirname + '/assets/conta-de-bar.jpeg',
-			`data:${mimeType};base64,${base64}`,
-			{},
-			{ debug: true }
-		);
-
-		console.log('jobId >>>\n\n', ret.jobId);
-		console.log('text >>>\n\n', ret.data.text);
-		// console.log('blocks >>>\n\n', ret.data.blocks);
-		// console.log('paragraphs >>>\n\n', ret.data.paragraphs[0].lines);
-		// console.log('box >>>', ret.data.box);
-		// console.log('blocks >>>', ret.data.blocks);
-		// console.log('lines >>>', ret.data.lines);
-
-		await worker.terminate();
-
-		const prompt = `you are an expert in translating ocr text obtained from restaurant bills from all countries into json structures.
-                you can read ocr texts and understand what products were bought and how much they cost. 
-                your goal is to transform this piece of ocr text
-                \`\`\`
-                ${ret.data.text}
-                \`\`\`
-                into a json structure representing the bill according to the following contracts:
-                \`\`\`
-                export enum Category {
-					MEAL = 'MEAL',
-					FAST_FOOD = 'FAST_FOOD',
-					PIZZA_PASTA = 'PIZZA_PASTA',
-					ORIENTAL_CUISINE = 'ORIENTAL_CUISINE',
-					DESSERT = 'DESSERT',
-					TAX = 'TAX',
-					SERVICE = 'SERVICE',
-					SOFT_DRINK = 'SOFT_DRINK',
-					ALCOHOLIC_DRINK = 'ALCOHOLIC_DRINK',
-					GROCERIES_SUPERMARKET = 'GROCERIES_SUPERMARKET',
-					RETAIL_SHOPPING = 'RETAIL_SHOPPING',
-					ONLINE_PURCHASE = 'ONLINE_PURCHASE',
-					GIFT = 'GIFT',
-					FLIGHT = 'FLIGHT',
-					TRANSPORT = 'TRANSPORT', // (Car, Train, Bus, Boat)
-					ACCOMMODATION = 'ACCOMMODATION',
-					UTILITIES_HOME = 'UTILITIES_HOME',
-					TECH = 'TECH', // (PC, Smartphone, Video game)
-					HEALTH_MEDICAL = 'HEALTH_MEDICAL',
-					ENTERTAINMENT_LEISURE = 'ENTERTAINMENT_LEISURE',
-					EDUCATION = 'EDUCATION',
-					MISCELLANEOUS = 'MISCELLANEOUS',
 					UNKNOWN = 'UNKNOWN',
                 }
 				interface Product {
@@ -247,28 +114,162 @@ const tessearctImage = async (req: Request, res: Response) => {
                 ensure only the raw json is returned, nothing more. no comments. no fluff. 
                 only json, ready to be consumed by a javascript application.
                `;
-		const aiResponse = await ollama.chat({
-			model: 'gemma3:1b', // 815 MB
-			// messages: [{ role: 'user', content: 'Why is the sky blue?' }],
-			messages: [{ role: 'user', content: prompt }],
+
+const googleGenAI = new GoogleGenAI({
+	apiKey: process.env.GOOGLE_API_KEY,
+});
+
+async function getOCRFromGoogle(base64: string) {
+	console.log('Sending request to Google Vision API...');
+	const request = {
+		image: {
+			content: base64, // The base64 encoded image string
+		},
+		// features: [{ type: 'DOCUMENT_TEXT_DETECTION' as const }], // 'as const' helps TypeScript infer the literal type
+		imageContext: {
+			languageHints: ['en', 'pt-BR'], // Example language hints
+		},
+	};
+
+	// Performs text detection on the image file
+	// const [result] = await visionClient.annotateImage(request);
+	const [result] = await visionClient.documentTextDetection(request);
+	// const [result] = await visionClient.textDetection(request); // for less structured text
+
+	if (result.error) {
+		console.error('Google Vision API processing error:', result.error);
+		throw Error('Google Vision API processing error');
+	}
+
+	const fullTextAnnotation = result.fullTextAnnotation;
+
+	if (!fullTextAnnotation?.text) {
+		throw Error('Google Vision failed to yield OCR');
+	}
+	const extractedOCR = fullTextAnnotation.text;
+
+	console.log('Text detection successful.\n\n', { extractedOCR });
+
+	return extractedOCR;
+}
+async function analyzeOCRWithGemini(extractedOCR: string) {
+	const aiResponse = await googleGenAI.models.generateContent({
+		model: 'gemini-2.0-flash-001',
+		contents: getPrompt(extractedOCR),
+		config: {
+			responseMimeType: 'application/json',
+			responseSchema: zodToJsonSchema(billSchema),
+		},
+	});
+
+	const result = aiResponse.candidates?.[0].content?.parts?.[0].text;
+
+	if (!result) throw Error('ai failed to produce usable output');
+
+	return JSON.parse(result);
+}
+
+async function getOCRFromTesseract(base64: string, mimeType: string) {
+	const worker = await createWorker(['por', 'eng']);
+
+	const ret = await worker.recognize(
+		`data:${mimeType};base64,${base64}`,
+		{},
+		{ debug: true }
+	);
+
+	console.log('jobId >>>\n\n', ret.jobId);
+	console.log('text >>>\n\n', ret.data.text);
+	// console.log('blocks >>>\n\n', ret.data.blocks);
+	// console.log('paragraphs >>>\n\n', ret.data.paragraphs[0].lines);
+	// console.log('box >>>', ret.data.box);
+	// console.log('blocks >>>', ret.data.blocks);
+	// console.log('lines >>>', ret.data.lines);
+	worker.terminate();
+
+	return ret.data.text;
+}
+async function analyzeOCRWithOllama(ocrText: string) {
+	const aiResponse = await ollama.chat({
+		// model: 'gemma3:1b', // 815 MB // pretty dumb
+		// model: 'qwen3:1.7b', // fair enough
+		// model: 'deepseek-r1:1.5b', // bad results
+		model: 'qwen2.5-coder:1.5b',
+		messages: [{ role: 'user', content: getPrompt(ocrText) }],
+		format: zodToJsonSchema(billSchema),
+	});
+
+	return aiResponse;
+}
+
+async function analyzeImage(req: Request, res: Response) {
+	console.log('running analyzeImage...');
+	if (!visionClient) {
+		return res
+			.status(500)
+			.json({ error: 'Vision client not initialized.' });
+	}
+
+	if (!req.body.base64) {
+		return res
+			.status(400)
+			.json({ error: 'Missing field "base64" in request body.' });
+	}
+
+	try {
+		const extractedOCR = await getOCRFromGoogle(req.body.base64);
+
+		if (!extractedOCR)
+			throw Error('getOCRFromGoogle failed to produce OCR text');
+
+		console.log('Text detection successful! Now prompting AI...');
+
+		const aiResponse = await analyzeOCRWithGemini(extractedOCR);
+
+		if (!aiResponse)
+			throw Error('analyzeOCRWithGemini failed to produce json data');
+
+		console.log('ai prompt successful! send response back :::', aiResponse);
+
+		res.json(aiResponse);
+	} catch (error: any) {
+		console.error(
+			'Error processing image. either Google Vision or Google GenAI failed ::',
+			error
+		);
+		res.status(500).json({
+			error: 'Failed to process image',
+			details: error.message || String(error),
 		});
+	}
+}
 
-		// console.log(aiResponse.message.content);
-		console.log('ai prompt successful!');
+async function tessearctImage(req: Request, res: Response) {
+	try {
+		const { base64, mimeType } = req.body;
+		if (!base64 || !mimeType) {
+			return res.status(400).json({
+				error: 'Missing "base64" and/or "mimeType" fields in request body.',
+			});
+		}
 
-		let responseJSONText = (aiResponse.message.content || '')
-			?.replace(/^```json/, '')
-			?.replace(/```$/, '');
+		const ocrText = await getOCRFromTesseract(base64, mimeType);
 
-		const jsonData = JSON.parse(responseJSONText);
+		if (!ocrText)
+			throw Error('getOCRFromTesseract failed to produce OCR text');
 
-		console.log('sending response back :::', jsonData);
-		res.json(jsonData);
+		const aiResponse = await analyzeOCRWithOllama(ocrText);
+
+		if (!aiResponse)
+			throw Error('analyzeOCRWithOllama failed to produce json data');
+
+		console.log('ai prompt successful! send response back :::', aiResponse);
+		res.json(aiResponse);
 	} catch (err) {
 		console.error('tesseract error :::', String(err).slice(0, 1000));
-		res.json({ err });
+		res.status(500).json({ err });
 	}
-};
+}
 
 const tessearctLangs = {
 	afr: 'Afrikaans',
@@ -376,3 +377,11 @@ const tessearctLangs = {
 };
 
 export { visionClient, analyzeImage, tessearctImage };
+
+// ollama.list().then(console.log);
+
+// const response = await ollama.chat({
+// 	model: 'gemma3:1b', // 815 MB
+// 	messages: [{ role: 'user', content: 'Why is the sky blue?' }],
+// });
+// console.log(response.message.content);
