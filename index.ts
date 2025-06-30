@@ -34,15 +34,13 @@ app.get('/say-hello', (req, res) => {
 });
 
 app.post('/analyze-image', (req, res) => {
-	console.log('=======================');
+	console.log('=========== analyze-image ============');
 	console.log(new Date().toLocaleString('pt-BR'));
 
 	analyzeImage(req, res);
 });
 app.post('/tesseract-image', (req, res) => {
-	console.log(
-		'======================= tessearctImage ======================='
-	);
+	console.log('================= tessearctImage =================');
 	console.log(new Date().toLocaleString('pt-BR'));
 
 	tessearctImage(req, res);
