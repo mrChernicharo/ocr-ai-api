@@ -61,21 +61,6 @@ const analyzeImage = async (req: Request, res: Response) => {
 			// This example just returns the full raw text and a simplified structure
 			const extractedData = {
 				rawText: fullTextAnnotation.text,
-				// Basic line extraction example (you'll need more sophisticated parsing for bills)
-				lines:
-					fullTextAnnotation.pages?.[0]?.blocks?.flatMap(
-						block =>
-							block.paragraphs?.flatMap(para =>
-								para.words
-									?.map(word =>
-										word.symbols
-											?.map(symbol => symbol.text)
-											.join('')
-									)
-									.join(' ')
-							) || []
-					) || [],
-				// You can return the full annotation if your client wants to parse it
 			};
 
 			console.log('prompting AI...');
@@ -116,7 +101,6 @@ const analyzeImage = async (req: Request, res: Response) => {
 					HEALTH_MEDICAL = 'HEALTH_MEDICAL',
 					ENTERTAINMENT_LEISURE = 'ENTERTAINMENT_LEISURE',
 					EDUCATION = 'EDUCATION',
-					MISCELLANEOUS = 'MISCELLANEOUS',
 					UNKNOWN = 'UNKNOWN',
                 }
 				interface Product {
